@@ -128,32 +128,109 @@ def load_bird_dataset() -> tuple[Path, Path] | None:
     print(f"✅ Bird dataset ready → JSON: {json_path}, DB: {db_root}", file=sys.stderr)
     return json_path, db_root
 
+
+def load_webshop_dataset() -> tuple[Path, Path] | None:
+    """
+    Download WebShop dataset JSON files into:
+      external/webshop-minimal/webshop_minimal/data/full/
+
+    Files:
+      - items_shuffle.json (5.48 GB)
+      - items_ins_v2.json (186 MB)
+
+    Returns (items_shuffle_path, items_ins_v2_path) on success, or None on failure.
+    """
+    hf_repo = "Yuxuan13/webshop_dataset"
+    repo_type = "dataset"
+    filenames = [
+        "items_shuffle.json",
+        "items_ins_v2.json",
+    ]
+
+    # Find repo root and set up paths
+    try:
+        repo_root = _find_repo_root(Path(__file__).parent)
+    except FileNotFoundError:
+        print("❌ Could not find lmgamerl project root", file=sys.stderr)
+        return None
+
+    dest_dir = repo_root / "external" / "webshop-minimal" / "webshop_minimal" / "data" / "full"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    print(f"📁 WebShop data directory: {dest_dir}", file=sys.stderr)
+
+    downloaded_paths: list[Path] = []
+    for name in filenames:
+        out_path = dest_dir / name
+        if out_path.exists():
+            print(f"✅ {name} already present", file=sys.stderr)
+            downloaded_paths.append(out_path)
+            continue
+        print(f"📥 Downloading {name} from Hugging Face...", file=sys.stderr)
+        try:
+            hf_hub_download(
+                repo_id=hf_repo,
+                filename=name,
+                repo_type=repo_type,
+                local_dir=str(dest_dir),
+                local_dir_use_symlinks=False,
+            )
+            downloaded_paths.append(out_path)
+        except Exception as e:
+            print(f"❌ ERROR fetching {name}: {e}", file=sys.stderr)
+            return None
+
+    if len(downloaded_paths) != 2:
+        print("❌ ERROR: Missing files after download", file=sys.stderr)
+        return None
+
+    print(
+        f"✅ WebShop dataset ready → items_shuffle: {downloaded_paths[0]}, items_ins_v2: {downloaded_paths[1]}",
+        file=sys.stderr,
+    )
+    return downloaded_paths[0], downloaded_paths[1]
+
 def main():
     """Main entry point with CLI options."""
-    parser = argparse.ArgumentParser(description="Load Bird dataset for lmgamerl")
+    parser = argparse.ArgumentParser(description="Load datasets for lmgamerl")
     parser.add_argument("--bird", action="store_true", help="Load Bird dataset")
+    parser.add_argument("--webshop", action="store_true", help="Load WebShop dataset")
     
     args = parser.parse_args()
     
     # Check environment variables for backward compatibility
     load_bird = args.bird or os.getenv("LOAD_BIRD_DATASET", "").lower() in {"1", "true", "yes"}
+    load_webshop = args.webshop or os.getenv("LOAD_WEBSHOP_DATASET", "").lower() in {"1", "true", "yes"}
     
-    if not load_bird:
-        print("📋 Bird dataset loading not requested.")
-        return
-    
-    print("🚀 lmgamerl Bird Dataset Loader")
-    print("=" * 30)
-    
-    result = load_bird_dataset()
-    if not result:
-        print("❌ Bird dataset loading failed")
-        sys.exit(1)
-    
-    json_path, db_root = result
-    print(f"\n✅ Bird dataset loaded successfully!")
-    print(f"   JSON: {json_path}")
-    print(f"   DB:   {db_root}")
+    anything = False
+
+    if load_bird:
+        anything = True
+        print("🚀 lmgamerl Bird Dataset Loader")
+        print("=" * 30)
+        result = load_bird_dataset()
+        if not result:
+            print("❌ Bird dataset loading failed")
+            sys.exit(1)
+        json_path, db_root = result
+        print(f"\n✅ Bird dataset loaded successfully!")
+        print(f"   JSON: {json_path}")
+        print(f"   DB:   {db_root}")
+
+    if load_webshop:
+        anything = True
+        print("\n🚀 lmgamerl WebShop Dataset Loader")
+        print("=" * 30)
+        result_ws = load_webshop_dataset()
+        if not result_ws:
+            print("❌ WebShop dataset loading failed")
+            sys.exit(1)
+        items_shuffle_path, items_ins_v2_path = result_ws
+        print(f"\n✅ WebShop dataset loaded successfully!")
+        print(f"   items_shuffle: {items_shuffle_path}")
+        print(f"   items_ins_v2:  {items_ins_v2_path}")
+
+    if not anything:
+        print("📋 No dataset loading requested. Use --bird and/or --webshop, or set env flags.")
 
 if __name__ == "__main__":
     main()

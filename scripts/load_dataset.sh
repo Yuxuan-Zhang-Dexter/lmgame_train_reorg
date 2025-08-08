@@ -69,61 +69,34 @@ echo "lmgamerl Dataset Loading Script"
 echo "Started at: $(date)"
 echo "=========================================="
 
+loaded_any=0
+
 # Load Bird dataset using Python script
 if [[ "$LOAD_BIRD_DATASET" == 1 ]]; then
     print_step "Loading Bird dataset..."
     if python scripts/load_dataset.py --bird; then
         print_success "Bird dataset loaded successfully"
+        loaded_any=1
     else
         print_error "Failed to load Bird dataset"
         exit 1
     fi
 fi
 
-# Load WebShop dataset directly in shell
+# Load WebShop dataset using Python (Hugging Face downloads)
 if [[ "$LOAD_WEBSHOP_DATASET" == 1 ]]; then
     print_step "Loading WebShop dataset..."
-    
-    # Check if webshop submodule exists
-    if [[ ! -d "external/webshop-minimal" ]]; then
-        print_error "WebShop submodule not found. Please run git submodule update --init first."
-        exit 1
-    fi
-    
-    # Create data directory
-    WEBSHOP_DATA_DIR="external/webshop-minimal/webshop_minimal/data/full"
-    mkdir -p "$WEBSHOP_DATA_DIR"
-    
-    # Download WebShop datasets
-    cd "$WEBSHOP_DATA_DIR"
-    
-    if ! command -v gdown &> /dev/null; then
-        print_error "gdown not found. Please install it: pip install gdown"
-        exit 1
-    fi
-    
-    print_step "Downloading items_shuffle..."
-    if gdown https://drive.google.com/uc?id=1A2whVgOO0euk5O13n2iYDM0bQRkkRduB -O items_shuffle.json; then
-        print_success "items_shuffle downloaded"
+    if python scripts/load_dataset.py --webshop; then
+        print_success "WebShop dataset loaded successfully"
+        loaded_any=1
     else
-        print_error "Failed to download items_shuffle"
+        print_error "Failed to load WebShop dataset"
         exit 1
     fi
-    
-    print_step "Downloading items_ins_v2..."
-    if gdown https://drive.google.com/uc?id=1s2j6NgHljiZzQNL3veZaAiyW_qDEgBNi -O items_ins_v2.json; then
-        print_success "items_ins_v2 downloaded"
-    else
-        print_error "Failed to download items_ins_v2"
-        exit 1
-    fi
-    
-    cd - > /dev/null
-    print_success "WebShop dataset loaded successfully"
 fi
 
 # Show summary
-if [[ "$LOAD_BIRD_DATASET" == 0 && "$LOAD_WEBSHOP_DATASET" == 0 ]]; then
+if [[ "$loaded_any" == 0 ]]; then
     print_warning "No datasets specified to load."
     echo ""
     echo "Usage examples:"
