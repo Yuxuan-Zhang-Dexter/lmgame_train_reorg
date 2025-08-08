@@ -51,7 +51,7 @@ LMGameRL is an open‑source framework that post‑trains LLMs via reinforcement
 ### Optional: Install Datasets
 If you want to reproduce paper results and validate BIRD SQL performance or WebShop full dataset performance:
 ```bash
-source scripts/install_dataset.sh
+source scripts/install_dataset.sh --all
 ```
 
 ## Quick Run
