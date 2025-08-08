@@ -180,48 +180,6 @@ verify_torch_from_verl() {
     fi
 }
 
-# Optional: verify flash-attn availability (performance optimization on supported GPUs)
-verify_flash_attn() {
-    print_step "Checking optional FlashAttention (flash-attn)..."
-
-    python - <<'PY'
-import sys
-try:
-    import torch
-    # If CUDA isn't available, skip with code 2 (informational only)
-    if not torch.cuda.is_available():
-        sys.exit(2)
-    import importlib
-    sys.exit(0 if importlib.util.find_spec("flash_attn") else 1)
-except Exception:
-    # Any unexpected error: treat as not available
-    sys.exit(1)
-PY
-    rc=$?
-    if [ $rc -eq 0 ]; then
-        print_success "flash-attn ✓"
-    elif [ $rc -eq 2 ]; then
-        print_warning "CUDA not available; skipping flash-attn check"
-    else
-        print_warning "flash-attn not found. Attempting installation (optional)..."
-        if pip install --no-build-isolation flash-attn; then
-            print_success "flash-attn installed"
-            # Re-check
-            python - <<'PY'
-import sys, importlib, torch
-sys.exit(0 if (torch.cuda.is_available() and importlib.util.find_spec("flash_attn")) else 1)
-PY
-            if [ $? -eq 0 ]; then
-                print_success "flash-attn ✓ (verified)"
-            else
-                print_warning "flash-attn install did not verify; continuing without it"
-            fi
-        else
-            print_warning "flash-attn installation failed; continuing without it"
-        fi
-    fi
-}
-
 # Verify critical dependencies for Stage 2
 verify_stage1() {
     print_step "Verifying Stage 1 installation..."
@@ -253,6 +211,77 @@ verify_stage1() {
     print_success "Stage 1 verification completed - ready for 'pip install -e .'"
 }
 
+# Prepare Stage 2: ensure pinned Torch and FlashAttention versions (non-fatal)
+prepare_stage2_installation() {
+    print_step "Preparing Stage 2: pinning torch==2.7.1 and flash-attn==2.8.0.post2 (use official Linux wheels when available)"
+
+    # Non-fatal preparation
+    set +e
+
+    # Detect platform and CUDA
+    LINUX=$(python - <<'PY'
+import platform; print('1' if platform.system().lower()=='linux' else '0')
+PY
+)
+    CUDA_AVAIL=$(python - <<'PY'
+try:
+    import torch
+    print('1' if getattr(torch, 'cuda', None) and torch.cuda.is_available() else '0')
+except Exception:
+    print('0')
+PY
+)
+
+    if [ "$LINUX" = "1" ] && [ "$CUDA_AVAIL" = "1" ]; then
+        print_step "Linux + CUDA detected: installing/upgrading torch==2.7.1 and flash-attn==2.8.0.post2"
+        pip install --upgrade torch==2.7.1 flash-attn==2.8.0.post2
+    else
+        print_step "Non-Linux or no CUDA: installing/upgrading torch==2.7.1 (skip flash-attn)"
+        pip install --upgrade torch==2.7.1
+        if [ "$LINUX" = "1" ]; then
+            print_warning "CUDA not available; skipping flash-attn"
+        else
+            print_warning "Non-Linux platform; skipping flash-attn"
+        fi
+    fi
+
+    # Verify torch
+    python - <<'PY'
+import sys
+try:
+    import torch
+    sys.exit(0 if getattr(torch, '__version__', '') == '2.7.1' else 1)
+except Exception:
+    sys.exit(1)
+PY
+    if [ $? -eq 0 ]; then
+        print_success "torch==2.7.1 ✓"
+    else
+        print_warning "torch!=2.7.1 (wheel may be unavailable for this Python/CUDA); continuing"
+    fi
+
+    # Verify flash-attn only on Linux + CUDA
+    if [ "$LINUX" = "1" ] && [ "$CUDA_AVAIL" = "1" ]; then
+        python - <<'PY'
+import sys
+try:
+    import importlib
+    m = importlib.import_module('flash_attn')
+    sys.exit(0 if getattr(m, '__version__', '') == '2.8.0.post2' else 1)
+except Exception:
+    sys.exit(1)
+PY
+        if [ $? -eq 0 ]; then
+            print_success "flash-attn==2.8.0.post2 ✓"
+        else
+            print_warning "flash-attn!=2.8.0.post2 (wheel may be unavailable for this setup); continuing"
+        fi
+    fi
+
+    # Restore 'exit on error'
+    set -e
+}
+
 # Main function
 main() {
     echo "=========================================="
@@ -265,8 +294,8 @@ main() {
     install_verl
     install_webshop
     verify_torch_from_verl
-    verify_flash_attn
     verify_stage1
+    prepare_stage2_installation
     
     echo "=========================================="
     echo -e "${GREEN}Stage 1 completed successfully!${NC}"
