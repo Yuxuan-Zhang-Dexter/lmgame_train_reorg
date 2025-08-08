@@ -295,7 +295,7 @@ main() {
     install_webshop
     verify_torch_from_verl
     verify_stage1
-    prepare_stage2_installation
+    # prepare_stage2_installation
     
     echo "=========================================="
     echo -e "${GREEN}Stage 1 completed successfully!${NC}"
