@@ -180,6 +180,48 @@ verify_torch_from_verl() {
     fi
 }
 
+# Optional: verify flash-attn availability (performance optimization on supported GPUs)
+verify_flash_attn() {
+    print_step "Checking optional FlashAttention (flash-attn)..."
+
+    python - <<'PY'
+import sys
+try:
+    import torch
+    # If CUDA isn't available, skip with code 2 (informational only)
+    if not torch.cuda.is_available():
+        sys.exit(2)
+    import importlib
+    sys.exit(0 if importlib.util.find_spec("flash_attn") else 1)
+except Exception:
+    # Any unexpected error: treat as not available
+    sys.exit(1)
+PY
+    rc=$?
+    if [ $rc -eq 0 ]; then
+        print_success "flash-attn ✓"
+    elif [ $rc -eq 2 ]; then
+        print_warning "CUDA not available; skipping flash-attn check"
+    else
+        print_warning "flash-attn not found. Attempting installation (optional)..."
+        if pip install --no-build-isolation flash-attn; then
+            print_success "flash-attn installed"
+            # Re-check
+            python - <<'PY'
+import sys, importlib, torch
+sys.exit(0 if (torch.cuda.is_available() and importlib.util.find_spec("flash_attn")) else 1)
+PY
+            if [ $? -eq 0 ]; then
+                print_success "flash-attn ✓ (verified)"
+            else
+                print_warning "flash-attn install did not verify; continuing without it"
+            fi
+        else
+            print_warning "flash-attn installation failed; continuing without it"
+        fi
+    fi
+}
+
 # Verify critical dependencies for Stage 2
 verify_stage1() {
     print_step "Verifying Stage 1 installation..."
@@ -223,6 +265,7 @@ main() {
     install_verl
     install_webshop
     verify_torch_from_verl
+    verify_flash_attn
     verify_stage1
     
     echo "=========================================="
