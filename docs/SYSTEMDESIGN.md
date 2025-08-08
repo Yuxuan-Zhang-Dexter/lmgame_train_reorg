@@ -80,17 +80,68 @@ Message 1: [SYSTEM]
 
 ## Key Design Decisions
 
-### 1. Inheritance Strategy
-- **Inherit from RayPPOTrainer**: Maintains compatibility with existing VERL infrastructure
-- **Minimal modifications**: Only replace the generation logic, keep everything else the same
-- **Clean separation**: Multi-turn logic is encapsulated in `SyncMultiTurnRollout`
+### 1. Inheritance and Isolation
+- **Inherit from `RayPPOTrainer` (VERL)**: Reuses stable PPO loops, optimizers, schedulers, distributed primitives, and logging hooks.
+- **Isolate multi‑turn logic**: All multi‑turn specifics live behind `AgentTrainer._generate_multi_turn_sequences` and `SyncMultiTurnRollout`.
+- **Trade‑off**: Tight coupling to VERL APIs, but with a thin adapter layer that minimizes upgrade surface.
 
-### 2. Agent Registration System
-- **Agent Registry**: Agents are registered using `@register_agent("agentName")` decorator
-- **Automatic Resolution**: Agent class is automatically resolved from config
-- **Flexible Configuration**: Agent configs defined in YAML format
+### 2. Agent Registry and Contracts
+- **Registry**: Agents are registered via `@register_agent("agentName")` for simple name→class resolution from YAML.
+- **Clear contracts**: Agents expose `get_llm_prompts`, `get_env_outputs`, `get_final_rollout_states` with well‑defined I/O shapes.
+- **Determinism knobs**: Where feasible, functions are pure w.r.t. inputs and `seed` in config to improve reproducibility.
+- **Extensibility**: Adding a new game usually requires an agent + env pair that satisfies the same interface; PPO remains unchanged.
 
-### 3. Main Modification Points
+### 3. Rollout Orchestrator & Synchronization
+- **Synchronous turns**: A barrier per turn keeps trajectories aligned across agents, simplifying batching and logging.
+- **Early termination**: Per‑agent done masks allow finished episodes to stop while others continue; sequences are padded and masked for loss.
+- **Throughput**: Requests are batched per step; tuning `agent_group_num` and `agent_group_size` balances utilization vs. latency.
+
+### 4. Batching, Tokenization & Memory
+- **Tokenizer as dependency**: Single tokenizer instance injected to avoid drift across components.
+- **Truncation policy**: Left‑truncation keeps the most recent context (`rollout.truncation: left`).
+- **Memory controls**: `max_model_len`, `gpu_memory_utilization`, and optional cache‑freeing (`free_cache_engine`) mitigate OOM.
+- **Lengths**: `max_prompt_length` and `max_response_length` bound tokens per turn; chunked prefill can be enabled via VERL knobs.
+
+### 5. Rewards & Rollout Filtering
+- **Reward sources**: Prefer environment‑based rewards; optional shaping via `DummyRewardManager` or custom manager.
+- **Filtering**: `rollout_filter_ratio` and `rollout_filter_type` (e.g., `std`) drop outliers to stabilize PPO updates.
+- **Turn vs. terminal**: Supports turn‑level rewards (`use_turn_scores`) and terminal rewards; normalization options are configurable.
+
+### 6. Validation Strategy
+- **Same machinery**: Validation reuses multi‑turn rollout with deterministic settings (`do_sample: False`, `temperature: 0`).
+- **Scale**: Validation population = `validation_agent_group_num × validation_agent_group_size`.
+- **Metrics**: Validation metrics are namespaced with `val-env/` for clear dashboards.
+
+### 7. Configuration & Reproducibility
+- **Hydra‑style structured config**: Single source of truth for PPO, rollout, agents, and trainer settings.
+- **Seed discipline**: Per‑run seeds tracked in config; encourage per‑agent/group seeding when needed.
+- **Run capture**: Log full config and git SHA to ensure experiments are reproducible.
+
+### 8. Observability
+- **Logging backends**: Console + Weights & Biases supported out of the box.
+- **Rollout telemetry**: Success rates, per‑turn rewards, action counts, filter ratios, and token usage surfaced as metrics.
+- **Tracing hooks**: Key timings (inference, env‑step, aggregation) are exposed to spot bottlenecks.
+
+### 9. Scalability & Performance
+- **Horizontal**: Increase `agent_group_num` (more groups) to scale concurrency.
+- **Vertical**: Increase `agent_group_size` to grow batch sizes per step.
+- **Multi‑GPU**: Use VERL’s parallelism knobs (`tensor_model_parallel_size`, micro‑batches) to fit larger models.
+- **Straggler impact**: Synchronous barriers simplify accounting but expose tail‑latency; tune group sizes and timeouts accordingly.
+
+### 10. Fault Tolerance & Timeouts
+- **Timeouts & retries**: Guard LLM calls with timeouts; optionally retry once with smaller batch or lower max tokens.
+- **Graceful degradation**: On repeated failures, pad with masks and continue training; never block the whole batch.
+- **Numerical safety**: NaN/Inf guards on rewards, advantages, and losses; drop affected samples.
+
+### 11. Output Schema & Safety
+- **Schema enforcement**: Agents enforce `<think>...</think><answer>...</answer>` and penalize malformed outputs (`format_penalty`).
+- **Parser robustness**: Strict parsing with fallback to safe defaults; malformed turns can yield zero reward and proceed.
+
+### 12. Extensibility
+- **Pluggable managers**: Swap reward manager, rollout filters, or validators without touching PPO.
+- **New tasks**: Register a new agent/env class and add YAML entries; training loop remains unchanged.
+
+### 13. Main Modification Points
 
 The implementation highlights three key modifications compared to the original `RayPPOTrainer`:
 
