@@ -51,7 +51,7 @@ LMGameRL is an open‑source framework that post‑trains LLMs via reinforcement
 ### Optional: Install Datasets
 If you want to reproduce paper results and validate BIRD SQL performance or WebShop full dataset performance:
 ```bash
-source scripts/install_dataset.sh
+source scripts/install_dataset.sh --all
 ```
 
 ## Quick Run
@@ -92,7 +92,7 @@ The framework is pre‑configured for different GPU setups:
 | A100 | 1 | 8 | 16 | 128 | Qwen/Qwen2.5-0.5B-Instruct | Sokoban |
 | L40 | 1 | 4 | 8 | 32 | Qwen/Qwen2.5-0.5B-Instruct | Sokoban |
 | A100 | 8 | 8 | 16 | 128 | Qwen/Qwen2.5-7B-Instruct | Sokoban |
-| H200 | 4 | 8 | 8 | 16 / 128 | Qwen/Qwen2.5-7B-Instruct | Sokoban |
+| H200 | 4 | 8 | 8 | 128 | Qwen/Qwen2.5-7B-Instruct | Sokoban |
 | A100 | 8 | 8 | 16 | 128 | Qwen/Qwen2.5-7B-Instruct | Tetris |
 
 
