@@ -1,39 +1,52 @@
+<div align="center">
+
 # LMGame Multi-Turn Reinforcement Learning
 
-A comprehensive framework for multi-turn reinforcement learning training of language model agents in gaming environments. This framework enables training language models to play complex games through reinforcement learning, developing general reasoning and decision-making capabilities.
+</div>
 
-## Quick Start
+<div>
+<br>
 
-### Prerequisites
-- Python 3.10+
-- CUDA-compatible GPU (A100, L40, or similar)
-- Conda package manager
+<div align="center">
 
-### Installation
 
-1. **Create conda environment:**
+[![Github](https://img.shields.io/badge/LMGameRL-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mignonjia/lmgame_train_reorg)
+[![Website](https://img.shields.io/badge/Site-%23000000.svg?style=for-the-badge&logo=semanticweb&logoColor=white)](https://lmgame.org) 
+[![arXiv](https://img.shields.io/badge/arXiv-2505.15146-B31B1B?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2505.15146)
+[![X (Twitter)](https://img.shields.io/badge/Follow-HaoAILab-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/haoailab)
+[![Discord](https://img.shields.io/badge/Join%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/x3dTHfyRZE)
+
+</div>
+
+</div>
+
+LMGameRL is an open‑source framework that post‑trains LLMs via reinforcement learning on games, yielding general gains across diverse benchmarks.
+
+## Release
+<strong>[2025/08/**]</strong> We release LMGameRL to reproduce the paper’s results and to demonstrate general gains across benchmarks by post‑training LLMs via reinforcement learning.
+
+
+## Installation
+
    ```bash
-   conda create --name LMGameRL python=3.10
-   conda activate LMGameRL
-   ```
+   # clone the repo
+   git clone --recurse-submodules https://github.com/mignonjia/lmgame_train_reorg.git
+   cd lmgame_train_reorg
 
-2. **Install submodules and package:**
-   ```bash
+   # create a conda environment
+   conda create --name lmgamerl python=3.10
+   conda activate lmgamerl
+
+   # install all dependencies
    source scripts/install_submodules.sh
    pip install -e .
-   ```
 
-3. **Set up authentication (optional but recommended):**
-   ```bash
+   # export environment variables
    export WANDB_API_KEY=your_wandb_api_key
    export WANDB_ENTITY=your_wandb_entity
    export HF_TOKEN=your_huggingface_token
    ```
 
-4. **Environment setup:**
-   ```bash
-   source env_setup.sh
-   ```
 
 ### Optional: Install Datasets
 If you want to reproduce paper results and validate BIRD SQL performance or WebShop full dataset performance:
@@ -43,14 +56,21 @@ source scripts/install_dataset.sh
 
 ## Quick Run
 
-For immediate testing and quick experimentation:
+For quick experimentation:
+Trains on 6×6 (1‑box) Sokoban and transfers to 8×8 (1-box).
+
 ```bash
 source quick_train_qwen_halfb.sh
 ```
 
 ## Training Examples
 
-### General Game RL Training (Paper Reported Results)
+### General gains of LLM ability from game RL training (paper‑reported results)
+
+
+![Table 4: Model performance on diverse tasks](docs/assets/table4.png)
+
+> **Note:** RL training results may fluctuate relative to reported results, but the overall trend and gains remain consistent.
 
 **Sokoban Agent Training:**
 ```bash
@@ -62,49 +82,30 @@ source examples/sokoban_ppo/qwen_7b.sh
 source examples/tetris_ppo/qwen_7b.sh
 ```
 
-### Customizable Training Scripts
 
-All scripts support configurable parameters:
-```bash
-# Basic usage with defaults
-source examples/sokoban_ppo/qwen_halfb.sh
+### Hardware Configuration
 
-# Custom configuration
-source examples/sokoban_ppo/qwen_halfb.sh "0,1" "8" "16" "64,64" "1,1" "simpleSokobanAgent" "simpleSokobanAgent,largeSokobanAgent" 2 "my_project" "my_experiment" "Qwen/Qwen2.5-0.5B-Instruct"
-```
+The framework is pre‑configured for different GPU setups:
 
-**Parameter Order:**
-1. CUDA_VISIBLE_DEVICES
-2. Agent Group Number
-3. Agent Group Size  
-4. Validation Agent Group Numbers
-5. Validation Agent Group Sizes
-6. Training Tasks
-7. Validation Tasks
-8. Number of GPUs per Node
-9. Project Name
-10. Experiment Name
-11. Model Path
+| GPU Type | GPUs | Agent Groups | Group Size | Total Agents | Default Model | Task |
+|---|---:|---:|---:|---:|---|---|
+| A100 | 1 | 8 | 16 | 128 | Qwen/Qwen2.5-0.5B-Instruct | Sokoban |
+| L40 | 1 | 4 | 8 | 32 | Qwen/Qwen2.5-0.5B-Instruct | Sokoban |
+| A100 | 8 | 8 | 16 | 128 | Qwen/Qwen2.5-7B-Instruct | Sokoban |
+| H200 | 4 | 8 | 8 | 16 / 128 | Qwen/Qwen2.5-7B-Instruct | Sokoban |
+| A100 | 8 | 8 | 16 | 128 | Qwen/Qwen2.5-7B-Instruct | Tetris |
 
-## Hardware Configuration
 
-The framework is pre-configured for different GPU setups:
 
-| GPU Type | Agent Groups | Group Size | Total Agents | Default Model |
-|----------|--------------|------------|--------------|---------------|
-| **A100** (default) | 8 | 16 | 128 | Qwen/Qwen2.5-0.5B-Instruct |
-| **A100 (7B)** | 8 | 16 | 128 | Qwen/Qwen2.5-7B-Instruct |
-| L40 | 4 | 8 | 32 | Qwen/Qwen2.5-0.5B-Instruct |
-
-> **Note:** The framework automatically scales configurations based on available hardware. Adjust parameters in training scripts for optimal performance on your setup.
+> **Note:** The framework automatically scales based on available hardware. Adjust parameters in the training scripts for best performance on your setup.
 
 ## Supported Games and Agents
 
 - **Sokoban**: Puzzle-solving game requiring spatial reasoning
-- **Tetris**: Real-time decision making and planning
+- **Tetris**: decision‑making and planning
 - **GSM8K**: Mathematical reasoning tasks
 - **BlocksWorld**: Logical planning and manipulation
-- **WebShop**: E-commerce navigation and decision making
+- **WebShop**: E‑commerce navigation and decision‑making
 - **BIRD**: SQL query generation and database reasoning
 
 ## Documentation
@@ -112,28 +113,20 @@ The framework is pre-configured for different GPU setups:
 - **[System Design Overview](docs/SYSTEMDESIGN.md)** - Architecture and design principles
 - **[Development Guide](docs/DEVELOPMENT.md)** - Contributing and development workflow
 
-## Project Structure
-
-```
-lmgame_train_reorg/
-├── lmgamerl/              # Main training package
-├── configs/               # Hydra configuration files
-├── examples/              # Training scripts for different games
-│   ├── sokoban_ppo/       # Sokoban training examples
-│   └── tetris_ppo/        # Tetris training examples
-├── scripts/               # Setup and utility scripts
-├── docs/                  # Documentation
-└── quick_train_qwen_halfb.sh  # Quick start script
-```
-
 ## Acknowledgments
 
-This framework is built upon and extends the following excellent projects:
+Our work is powered by [VERL](https://github.com/volcengine/verl), an open‑source RLHF library, and draws insights from [Ragen](https://github.com/RAGEN-AI/RAGEN).
 
-- **[VERL](https://github.com/volcengine/verl)** - Powers the core training framework and provides the distributed training infrastructure
-- **[Ragen](https://github.com/xxxx/ragen)** - Provides foundational game environment implementations and agent interfaces
-
-We gratefully acknowledge the contributions of these projects to the open-source RL and language model training community.
+## Citation
+If you find this repository helpful, please kindly cite:
+```
+@article{hu2025lmgame,
+  title={lmgame-Bench: How Good are LLMs at Playing Games?},
+  author={Hu, Lanxiang and Huo, Mingjia and Zhang, Yuxuan and Yu, Haoyang and Xing, Eric P and Stoica, Ion and Rosing, Tajana and Jin, Haojian and Zhang, Hao},
+  journal={arXiv preprint arXiv:2505.15146},
+  year={2025}
+}
+```
 
 ## License
 
