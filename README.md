@@ -39,6 +39,8 @@ LMGameRL is an open‑source framework that post‑trains LLMs via reinforcement
 
    # install all dependencies
    source scripts/install_submodules.sh
+   pip install --upgrade --index-url https://download.pytorch.org/whl/cu128 torch==2.7.0
+   pip install --only-binary=:all: flash-attn==2.8.0.post2
    pip install -e .
 
    # export environment variables
